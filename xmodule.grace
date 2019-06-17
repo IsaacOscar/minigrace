@@ -6,7 +6,6 @@ import "mirrors" as mirrors
 import "errormessages" as errormessages
 import "unixFilePath" as filePath
 
-
 def CheckerFailure = Exception.refine "CheckerFailure"
 def DialectError is public = Exception.refine "DialectError"
     //must correspond to what is defined in "dialect"
@@ -193,7 +192,7 @@ method checkimport(nm, pathname, isDialect, sourceRange) is confidential {
     }
     util.log 50 verbose "found module \"{nm}\" in {moduleFile}"
 
-    def gctDict = parseGCT(nm)
+    def gctDict = parseGCT(pathname)
     def sourceFile = filePath.fromString(gctDict.at "path" .first)
     def sourceExists = if (sourceFile.directory.contains "stub") then {
         false        // for binary-only modules like unicode
@@ -217,7 +216,7 @@ method checkimport(nm, pathname, isDialect, sourceRange) is confidential {
                     atRange(sourceRange)
             }
         }
-        imports.other.add(nm)
+        imports.other.add(pathname)
     }
     addTransitiveImports(moduleFile.directory, isDialect, nm, sourceRange)
 }
@@ -226,6 +225,8 @@ method addTransitiveImports(directory, isDialect, moduleName, sourceRange) is co
     def gctData = gctCache.at(moduleName) ifAbsent {
         parseGCT(moduleName) sourceDir(directory)
     }
+    def oldOutDir = util.outDir
+    util.outDir := directory
     if (gctData.containsKey "dialect") then {
         def dialects = gctData.at "dialect"
         if (dialects.isEmpty.not) then {
@@ -243,6 +244,7 @@ method addTransitiveImports(directory, isDialect, moduleName, sourceRange) is co
     importedModules.do { each ->
         checkimport(each, each, isDialect, sourceRange)
     }
+    util.outDir := oldOutDir
 }
 
 method compileModule (nm) inFile (sourceFile)
